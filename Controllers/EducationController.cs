@@ -2,6 +2,7 @@
 using FitnessTakip.DTOs;
 using FitnessTakip.Model;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FitnessTakip.Controllers
 {
@@ -110,5 +111,82 @@ namespace FitnessTakip.Controllers
             _context.SaveChanges();
             return true;
         }
+
+        [HttpGet("{id}")]
+        public ActionResult<dtoEducationDetailWithEarnings> GetEducationDetails(int id)
+        {
+            var education = _context.Educations.Include(e => e.Teacher)
+                                                .FirstOrDefault(e => e.Id == id);
+
+            if (education == null)
+                return NotFound("Geçersiz id girişi");
+
+            var monthlyEarnings = new List<dtoMonthlyEarnings>();
+            
+            for (int month = 1; month <= 12; month++)
+            {
+                var earnings = _context.UserPrograms
+                    .Where(up => up.EducationId == education.Id && up.KayitTarih.Month == month)
+                    .Sum(up => up.Price); 
+
+                monthlyEarnings.Add(new dtoMonthlyEarnings
+                {
+                    Month = new DateTime(2024, month, 1).ToString("MMMM yyyy"), 
+                    Earnings = earnings
+                });
+            }
+
+            var registeredUsers = _context.UserPrograms
+                .Where(up => up.EducationId == education.Id)
+                .Select(up => new dtoRegisteredUser
+                {
+                    UserName = up.User.Name 
+                }).ToList();
+
+            return new dtoEducationDetailWithEarnings
+            {
+                EducationName = education.Name,
+                TeacherName = education.Teacher.Name,
+                MonthlyEarnings = monthlyEarnings,
+                RegisteredUsers = registeredUsers
+            };
+        }
+        [HttpGet]
+        public ActionResult<List<dtoFilteredEducationList>> GetFilteredEducations([FromQuery] dtoFilterRequest filter)
+        {
+            var query = _context.Educations.Include(e => e.Teacher).AsQueryable();
+
+            if (filter.TeacherId.HasValue)
+            {
+                query = query.Where(e => e.TeacherId == filter.TeacherId.Value);
+            }
+
+            if (filter.EducationId.HasValue)
+            {
+                query = query.Where(e => e.Id == filter.EducationId.Value);
+            }
+
+            if (filter.MinDate.HasValue)
+            {
+                
+                query = query.Where(e => e.Created >= filter.MinDate.Value);
+            }
+
+            if (filter.MaxDate.HasValue)
+            {
+                query = query.Where(e => e.Created <= filter.MaxDate.Value);
+            }
+
+            var result = query.Select(e => new dtoFilteredEducationList
+            {
+                TeacherName = e.Teacher.Name,
+                EducationName = e.Name,
+                TotalEarnings = _context.UserPrograms.Where(up => up.EducationId == e.Id).Sum(up => up.Price),
+                RegisteredStudentCount = _context.UserPrograms.Count(up => up.EducationId == e.Id)
+            }).ToList();
+
+            return result;
+        }
+
     }
 }

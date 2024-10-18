@@ -91,7 +91,7 @@ namespace FitnessTakip.Controllers
             var userProgram = _context.UserPrograms
                 .Include(up => up.User)
                 .Include(up => up.Education)
-                .ThenInclude(e => e.Teacher) // Eğitmenin de yüklenmesini sağlıyoruz
+                .ThenInclude(e => e.Teacher) 
                 .FirstOrDefault(up => up.UserId == userId && up.EducationId == educationId);
 
             if (userProgram == null)
@@ -99,16 +99,15 @@ namespace FitnessTakip.Controllers
                 return NotFound("Kullanıcı ya da eğitim programı bulunamadı.");
             }
 
-            // Öğrenci giriş izni kontrolü
             var hasPermission = userProgram.HasEntryPermission();
 
             return Ok(new
             {
                 PermissionGranted = hasPermission ? "İzin verildi" : "İzin verilmedi",
                 RemainingCredits = userProgram.Credi,
-                UserName = userProgram.User?.Name, // Null kontrolü
-                EducationName = userProgram.Education?.Name, // Null kontrolü
-                TeacherName = userProgram.Education?.Teacher?.Name // Null kontrolü
+                UserName = userProgram.User?.Name, 
+                EducationName = userProgram.Education?.Name,
+                TeacherName = userProgram.Education?.Teacher?.Name 
             });
         }
         [HttpGet("entries-by-date/{startDate}/{endDate}")]
@@ -166,44 +165,7 @@ namespace FitnessTakip.Controllers
 
             return Ok(result);
         }
-        [HttpGet("lesson/{lessonId}")]
-        public IActionResult GetLessonDetails(int lessonId)
-        {
-            var lesson = _context.Lessons
-                .Include(l => l.UserPrograms)
-                    .ThenInclude(up => up.User)
-                .FirstOrDefault(l => l.Id == lessonId);
-
-            if (lesson == null)
-            {
-                return NotFound("Ders bulunamadı.");
-            }
-
-            var earnings = new Dictionary<string, decimal>();
-            var totalEarnings = 0m;
-
-            foreach (var userProgram in lesson.UserPrograms)
-            {
-                var monthYear = userProgram.KayitTarih.ToString("yyyy MMMM");
-                if (!earnings.ContainsKey(monthYear))
-                {
-                    earnings[monthYear] = 0;
-                }
-                earnings[monthYear] += userProgram.Price;
-                totalEarnings += userProgram.Price;
-            }
-
-            var result = new
-            {
-                LessonName = lesson.Name,
-                TeacherName = _context.Teachers.Find(lesson.CreatedUserId)?.Name, // Eğitmen adı
-                EarningsList = earnings.Select(e => new { Month = e.Key, Amount = e.Value }).ToList(),
-                TotalEarnings = totalEarnings,
-                RegisteredUsers = lesson.UserPrograms.Select(up => up.User.Name).ToList()
-            };
-
-            return Ok(result);
-        }
+        
 
 
     }

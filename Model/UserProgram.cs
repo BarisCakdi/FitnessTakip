@@ -15,9 +15,6 @@ namespace FitnessTakip.Model
         public int UserId { get; set; }
         [ForeignKey("UserId")]
         public User User { get; set; }
-        public int LessonId { get; set; } 
-        [ForeignKey("LessonId")]
-        public Lesson Lesson { get; set; }
 
         public int EducationId { get; set; }
         [ForeignKey("EducationId")]
